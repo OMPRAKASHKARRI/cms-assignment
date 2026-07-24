@@ -1,0 +1,52 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: renewcred-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: renewcred-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/renewcred_cms
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  admin-frontend:
+    build: ./admin-frontend
+    container_name: renewcred-admin
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:5000/api/v1
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  public-frontend:
+    build: ./public-frontend
+    container_name: renewcred-public
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
